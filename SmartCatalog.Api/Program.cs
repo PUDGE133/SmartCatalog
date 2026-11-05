@@ -1,5 +1,4 @@
-using Microsoft.EntityFrameworkCore;
-using SmartCatalog.Infrastructure.Data;
+using SmartCatalog.Infrastructure.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,7 +6,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDataAccess(builder.Configuration);
 
 var app = builder.Build();
 
