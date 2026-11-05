@@ -2,4 +2,7 @@
   <Folder Name="/Элементы решения/">
     <File Path="docker-compose.yml" />
   </Folder>
+  <Project Path="SmartCatalog.Api/SmartCatalog.Api.csproj" />
+  <Project Path="SmartCatalog.Domain/SmartCatalog.Domain.csproj" />
+  <Project Path="SmartCatalog.Infrastructure/SmartCatalog.Infrastructure.csproj" />
 </Solution>
