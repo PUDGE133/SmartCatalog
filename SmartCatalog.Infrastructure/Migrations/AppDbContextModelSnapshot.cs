@@ -22,7 +22,7 @@ namespace SmartCatalog.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("SmartCatalog.Domain.Entities.Product", b =>
+            modelBuilder.Entity("SmartCatalog.Infrastructure.Entities.Product", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

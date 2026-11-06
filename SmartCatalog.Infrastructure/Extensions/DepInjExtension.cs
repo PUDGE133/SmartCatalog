@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SmartCatalog.Infrastructure.Data;
+using SmartCatalog.Infrastructure.Repositories;
 
 namespace SmartCatalog.Infrastructure.Extensions;
 
@@ -10,10 +11,8 @@ public static class DepInjExtension
     public static IServiceCollection AddDataAccess(this IServiceCollection serviceCollection, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection");
-        serviceCollection.AddDbContext<AppDbContext>(x =>
-        {
-            x.UseNpgsql(connectionString);
-        });
+        serviceCollection.AddDbContext<AppDbContext>(x => x.UseNpgsql(connectionString));
+        serviceCollection.AddScoped<IProductRepository, ProductRepository>();
         return serviceCollection;
     }
 }

@@ -12,7 +12,7 @@ using SmartCatalog.Infrastructure.Data;
 namespace SmartCatalog.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261105084748_InitialCreate")]
+    [Migration("20261106064226_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -25,7 +25,7 @@ namespace SmartCatalog.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("SmartCatalog.Domain.Entities.Product", b =>
+            modelBuilder.Entity("SmartCatalog.Infrastructure.Entities.Product", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

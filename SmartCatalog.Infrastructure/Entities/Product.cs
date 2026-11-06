@@ -1,4 +1,4 @@
-﻿namespace SmartCatalog.Domain.Entities;
+﻿namespace SmartCatalog.Infrastructure.Entities;
 
 public class Product
 {

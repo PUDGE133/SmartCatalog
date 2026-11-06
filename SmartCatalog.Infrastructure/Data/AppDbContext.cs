@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using SmartCatalog.Domain.Entities;
 using SmartCatalog.Infrastructure.Configurations;
+using SmartCatalog.Infrastructure.Entities;
 
 namespace SmartCatalog.Infrastructure.Data;
 
