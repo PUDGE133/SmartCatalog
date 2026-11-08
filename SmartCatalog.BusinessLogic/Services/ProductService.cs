@@ -21,7 +21,7 @@ public interface IProductService
     Task<Result> DeleteProductAsync(Guid id, CancellationToken ct = default);
 }
 
-public class ProductService(ICacheService redisCacheService, IProductRepository productRepository) : IProductService
+public class ProductService(ICacheService cache, IProductRepository productRepository) : IProductService
 {
     private static readonly ProductRequestValidator _validator = new();
 
@@ -33,15 +33,25 @@ public class ProductService(ICacheService redisCacheService, IProductRepository 
 
         var product = new Product(request, DateTime.UtcNow);
         await productRepository.PostProductAsync(product, ct);
+
+        await InvalidateListsAsync(ct);
+
         return Result.Ok(product);
     }
 
     public async Task<Result<Product>> GetProductAsync(Guid id, CancellationToken ct = default)
     {
+        var cacheKey = CacheKeys.GetProductKey(id);
+
+        var cached = await cache.GetAsync<Product>(cacheKey, ct);
+        if (cached is not null)
+            return Result.Ok(cached);
+
         var product = await productRepository.GetProductAsync(id, Tracking.No, ct);
         if (product is null)
             return Result.Fail(new NotFoundError(Responses.NotFound));
 
+        await cache.SetAsync(cacheKey, product, CacheKeys.ProductTtl, ct);
         return Result.Ok(product);
     }
 
@@ -50,7 +60,16 @@ public class ProductService(ICacheService redisCacheService, IProductRepository 
         if (int.IsNegative(skip) || int.IsNegative(take))
             return Result.Fail(new BadRequestError(Responses.NegativeArgs));
 
+        var version = await GetListVersionAsync(ct);
+        var cacheKey = CacheKeys.GetProductListKey(version, skip, take);
+
+        var cached = await cache.GetAsync<List<Product>>(cacheKey, ct);
+        if (cached is not null)
+            return Result.Ok<IReadOnlyList<Product>>(cached);
+
         var listProducts = await productRepository.GetListProductsAsync(Tracking.No, skip, take, ct);
+        await cache.SetAsync(cacheKey, listProducts, CacheKeys.ListTtl, ct);
+
         return Result.Ok(listProducts);
     }
 
@@ -64,6 +83,10 @@ public class ProductService(ICacheService redisCacheService, IProductRepository 
         try
         {
             await productRepository.PutProductAsync(product, request.Version, ct);
+
+            await cache.RemoveAsync(CacheKeys.GetProductKey(id), ct);
+            await InvalidateListsAsync(ct);
+
             return Result.Ok(product);
         }
         catch (DbUpdateConcurrencyException)
@@ -79,6 +102,23 @@ public class ProductService(ICacheService redisCacheService, IProductRepository 
             return Result.Fail(new NotFoundError(Responses.NotFound));
 
         await productRepository.DeleteProductAsync(product, ct);
+
+        await cache.RemoveAsync(CacheKeys.GetProductKey(id), ct);
+        await InvalidateListsAsync(ct);
+
         return Result.Ok().WithSuccess(new OkValueSuccess(Responses.Delete));
+    }
+
+    private async Task<long> GetListVersionAsync(CancellationToken ct)
+    {
+        var version = await cache.GetCounterAsync(CacheKeys.ProductListVersionKey, ct);
+        if (version == 0)
+            version = await cache.IncrementAsync(CacheKeys.ProductListVersionKey, ct);
+        return version;
+    }
+
+    private Task<long> InvalidateListsAsync(CancellationToken ct)
+    {
+        return cache.IncrementAsync(CacheKeys.ProductListVersionKey, ct);
     }
 }

@@ -15,14 +15,14 @@ public class Product
 
     public Product() { }
 
-    public Product(ProductRequest request, DateTime dateTime)
+    public Product(ProductRequest request, DateTime createdDateTime)
     {
         Name = request.Name;
         Description = request.Description;
         Price = request.Price;
         Stock = request.Stock;
-        CreatedAt = dateTime;
-        UpdatedAt = dateTime;
+        CreatedAt = createdDateTime;
+        UpdatedAt = createdDateTime;
     }
 
     public void Update(ProductRequest request)

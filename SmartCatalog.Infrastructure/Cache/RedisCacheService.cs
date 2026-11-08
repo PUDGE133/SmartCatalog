@@ -1,22 +1,60 @@
 ﻿using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
+using System.Text.Json;
 
 namespace SmartCatalog.Infrastructure.Cache;
 
-public partial class RedisCacheService(ILogger<RedisCacheService> logger) : ICacheService
+public interface ICacheService
 {
-    public Task<T?> GetAsync<T>(string key, CancellationToken ct = default)
+    Task<T?> GetAsync<T>(string key, CancellationToken ct = default);
+    Task SetAsync<T>(string key, T value, TimeSpan? ttl = null, CancellationToken ct = default);
+    Task RemoveAsync(string key, CancellationToken ct = default);
+    Task<long> GetCounterAsync(string key, CancellationToken ct = default);
+    Task<long> IncrementAsync(string key, CancellationToken ct = default);
+}
+
+public partial class RedisCacheService(IConnectionMultiplexer redis, ILogger<RedisCacheService> logger) : ICacheService
+{
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private IDatabase Db => redis.GetDatabase();
+
+    public async Task<T?> GetAsync<T>(string key, CancellationToken ct = default)
     {
-        throw new NotImplementedException();
+        var raw = await Db.StringGetAsync(key).WaitAsync(ct);
+        if (raw.IsNullOrEmpty)
+        {
+            LogCacheMiss(key);
+            return default;
+        }
+
+        LogCacheHit(key);
+        return JsonSerializer.Deserialize<T>(raw.ToString(), JsonOptions);
     }
 
     public async Task SetAsync<T>(string key, T value, TimeSpan? ttl = null, CancellationToken ct = default)
     {
+        var payload = JsonSerializer.Serialize(value, JsonOptions);
+        var expiration = ttl.HasValue ? (Expiration)ttl.Value : Expiration.Default;
 
+        await Db.StringSetAsync(key, payload, expiration).WaitAsync(ct);
+        LogCacheSet(key, ttl);
     }
 
     public async Task RemoveAsync(string key, CancellationToken ct = default)
     {
+        await Db.KeyDeleteAsync(key).WaitAsync(ct);
+        LogCacheDel(key);
+    }
 
+    public async Task<long> GetCounterAsync(string key, CancellationToken ct = default)
+    {
+        var raw = await Db.StringGetAsync(key).WaitAsync(ct);
+        return raw.IsNullOrEmpty ? 0 : (long)raw;
+    }
+
+    public Task<long> IncrementAsync(string key, CancellationToken ct = default)
+    {
+        return Db.StringIncrementAsync(key).WaitAsync(ct);
     }
 }
 
