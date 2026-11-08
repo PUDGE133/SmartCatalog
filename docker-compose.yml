@@ -16,6 +16,20 @@ services:
       timeout: 5s
       retries: 5
 
+  pgweb:
+    container_name: pgweb
+    restart: always
+    image: sosedoff/pgweb
+    ports:
+      - "8081:8081"
+    links:
+      - postgres:postgres
+    environment:
+      - PGWEB_DATABASE_URL=postgresql://catalog_user:catalog_pass@postgres:5432/catalog_db?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   redis:
     image: redis:7-alpine
     container_name: smartcatalog-redis

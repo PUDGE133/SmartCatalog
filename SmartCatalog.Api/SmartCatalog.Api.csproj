@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentResults.Extensions.AspNetCore" Version="0.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
       <PrivateAssets>all</PrivateAssets>
@@ -16,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SmartCatalog.Infrastructure\SmartCatalog.Infrastructure.csproj" />
+    <ProjectReference Include="..\SmartCatalog.BusinessLogic\SmartCatalog.BusinessLogic.csproj" />
   </ItemGroup>
 
 </Project>

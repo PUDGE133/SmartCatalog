@@ -1,52 +1,54 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using SmartCatalog.Infrastructure.Data;
 using SmartCatalog.Infrastructure.Entities;
+using SmartCatalog.Infrastructure.Enums;
+using SmartCatalog.Infrastructure.Extensions;
 
 namespace SmartCatalog.Infrastructure.Repositories;
 
 public interface IProductRepository
 {
-    Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken ct = default);
-    Task<Product?> GetByIdAsync(Guid id, CancellationToken ct = default);
-    Task<Product> AddAsync(Product product, CancellationToken ct = default);
-    Task<bool> UpdateAsync(Guid id, Action<Product> applyChanges, CancellationToken ct = default);
-    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+    Task PostProductAsync(Product product, CancellationToken ct = default);
+    Task<Product?> GetProductAsync(Guid id, Tracking tracking, CancellationToken ct = default);
+    Task<IReadOnlyList<Product>> GetListProductsAsync(Tracking tracking, int skip = 0, int take = int.MaxValue, CancellationToken ct = default);
+    Task PutProductAsync(Product product, uint version, CancellationToken ct = default);
+    Task DeleteProductAsync(Product product, CancellationToken ct = default);
 }
 
-public class ProductRepository(AppDbContext db) : IProductRepository
+public class ProductRepository(AppDbContext context) : IProductRepository
 {
-    public async Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken ct = default) =>
-        await db.Products.AsNoTracking().ToListAsync(ct);
-
-    public async Task<Product?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
-        await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
-
-    public async Task<Product> AddAsync(Product product, CancellationToken ct = default)
+    public async Task PostProductAsync(Product product, CancellationToken ct = default)
     {
-        db.Products.Add(product);
-        await db.SaveChangesAsync(ct);
-        return product;
+        await context.Products.AddAsync(product, ct);
+        await context.SaveChangesAsync(ct);
     }
 
-    public async Task<bool> UpdateAsync(Guid id, Action<Product> applyChanges, CancellationToken ct = default)
+    public async Task<Product?> GetProductAsync(Guid id, Tracking tracking, CancellationToken ct = default)
     {
-        // ВАЖНО: без AsNoTracking — нужен tracking, чтобы SaveChanges увидел изменения
-        var product = await db.Products.FirstOrDefaultAsync(p => p.Id == id, ct);
-        if (product is null) return false;
-
-        applyChanges(product);
-        product.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
-        return true;
+        return await context.Products
+            .BuildQueryBase(tracking)
+            .FirstOrDefaultAsync(p => p.Id == id, ct);
     }
 
-    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Product>> GetListProductsAsync(Tracking tracking, int skip = 0, int take = int.MaxValue, CancellationToken ct = default)
     {
-        var product = await db.Products.FirstOrDefaultAsync(p => p.Id == id, ct);
-        if (product is null) return false;
+        return await context.Products
+            .BuildQueryBase(tracking)
+            .OrderBy(p => p.Name)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(ct);
+    }
 
-        db.Products.Remove(product);
-        await db.SaveChangesAsync(ct);
-        return true;
+    public async Task PutProductAsync(Product product, uint version, CancellationToken ct = default)
+    {
+        context.SetOriginalVersion(product, nameof(Product.Version), version);
+        context.Products.Update(product);
+        await context.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteProductAsync(Product product, CancellationToken ct = default)
+    {
+        context.Products.Remove(product);
+        await context.SaveChangesAsync(ct);
     }
 }

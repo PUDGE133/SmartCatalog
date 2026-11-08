@@ -2,7 +2,7 @@
 using SmartCatalog.Infrastructure.Configurations;
 using SmartCatalog.Infrastructure.Entities;
 
-namespace SmartCatalog.Infrastructure.Data;
+namespace SmartCatalog.Infrastructure;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {

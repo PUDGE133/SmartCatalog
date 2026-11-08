@@ -3,5 +3,7 @@
     <File Path="docker-compose.yml" />
   </Folder>
   <Project Path="SmartCatalog.Api/SmartCatalog.Api.csproj" />
+  <Project Path="SmartCatalog.BusinessLogic/SmartCatalog.BusinessLogic.csproj" Id="5effcb42-a351-46cf-895d-43721b71227b" />
+  <Project Path="SmartCatalog.Contracts/SmartCatalog.Contracts.csproj" Id="b5b2ea5a-a06c-464d-add4-a24fef4b8f45" />
   <Project Path="SmartCatalog.Infrastructure/SmartCatalog.Infrastructure.csproj" />
 </Solution>
