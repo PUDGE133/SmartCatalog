@@ -21,7 +21,7 @@ public sealed class AspNetCoreResultEndpointProfile : DefaultAspNetCoreResultEnd
                 _ => new ConflictObjectResult(error.Message),
             };
         }
-        return error.GetType().Name switch
+        return error?.GetType().Name switch
         {
             nameof(NotFoundError) => new NotFoundObjectResult(error.Message),
             nameof(BadRequestError) => new BadRequestObjectResult(error.Message),
@@ -33,7 +33,7 @@ public sealed class AspNetCoreResultEndpointProfile : DefaultAspNetCoreResultEnd
     public override ActionResult TransformOkNoValueResultToActionResult(OkResultToActionResultTransformationContext<Result> context)
     {
         var success = context.Result.Successes.FirstOrDefault();
-        return new OkObjectResult(success.Message);
+        return new OkObjectResult(success?.Message);
     }
 
     // Сюда попадаем, когда результат запроса успешный и надо вернуть объект.

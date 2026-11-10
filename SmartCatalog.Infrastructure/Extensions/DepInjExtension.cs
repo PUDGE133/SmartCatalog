@@ -23,7 +23,7 @@ public static class DepInjExtension
         });
 
         serviceCollection.AddScoped<IProductRepository, ProductRepository>();
-        serviceCollection.AddScoped<ICacheService, RedisCacheService>();
+        serviceCollection.AddSingleton<ICacheService, RedisCacheService>();
         return serviceCollection;
     }
 }

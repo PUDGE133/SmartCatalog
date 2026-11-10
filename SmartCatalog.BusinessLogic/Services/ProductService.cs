@@ -1,9 +1,11 @@
 ﻿using FluentResults;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using SmartCatalog.BusinessLogic.Extensions;
 using SmartCatalog.BusinessLogic.FluentResults.Errors;
 using SmartCatalog.BusinessLogic.FluentResults.Successes;
 using SmartCatalog.BusinessLogic.Validators;
+using SmartCatalog.Contracts.Events;
 using SmartCatalog.Contracts.Requests;
 using SmartCatalog.Infrastructure.Cache;
 using SmartCatalog.Infrastructure.Entities;
@@ -21,7 +23,7 @@ public interface IProductService
     Task<Result> DeleteProductAsync(Guid id, CancellationToken ct = default);
 }
 
-public class ProductService(ICacheService cache, IProductRepository productRepository) : IProductService
+public class ProductService(ICacheService cache, IProductRepository productRepository, IPublishEndpoint publishEndpoint) : IProductService
 {
     private static readonly ProductRequestValidator _validator = new();
 
@@ -34,7 +36,8 @@ public class ProductService(ICacheService cache, IProductRepository productRepos
         var product = new Product(request, DateTime.UtcNow);
         await productRepository.PostProductAsync(product, ct);
 
-        await InvalidateListsAsync(ct);
+        // Уведомляем RabbitMQ, что нужно сбросить кэш списков
+        await publishEndpoint.Publish(new ProductCreatedEvent(product.Id), ct);
 
         return Result.Ok(product);
     }
@@ -84,8 +87,8 @@ public class ProductService(ICacheService cache, IProductRepository productRepos
         {
             await productRepository.PutProductAsync(product, request.Version, ct);
 
-            await cache.RemoveAsync(CacheKeys.GetProductKey(id), ct);
-            await InvalidateListsAsync(ct);
+            // Уведомляем RabbitMQ
+            await publishEndpoint.Publish(new ProductUpdatedEvent(product.Id), ct);
 
             return Result.Ok(product);
         }
@@ -103,22 +106,15 @@ public class ProductService(ICacheService cache, IProductRepository productRepos
 
         await productRepository.DeleteProductAsync(product, ct);
 
-        await cache.RemoveAsync(CacheKeys.GetProductKey(id), ct);
-        await InvalidateListsAsync(ct);
+        // Уведомляем RabbitMQ
+        await publishEndpoint.Publish(new ProductDeletedEvent(id), ct);
 
         return Result.Ok().WithSuccess(new OkValueSuccess(Responses.Delete));
     }
 
-    private async Task<long> GetListVersionAsync(CancellationToken ct)
+    private Task<long> GetListVersionAsync(CancellationToken ct)
     {
-        var version = await cache.GetCounterAsync(CacheKeys.ProductListVersionKey, ct);
-        if (version == 0)
-            version = await cache.IncrementAsync(CacheKeys.ProductListVersionKey, ct);
-        return version;
-    }
-
-    private Task<long> InvalidateListsAsync(CancellationToken ct)
-    {
-        return cache.IncrementAsync(CacheKeys.ProductListVersionKey, ct);
+        // Это один вызов, который гарантирует, что версия всегда будет инициализирована (1) и никогда не прыгнет на 10 из-за гонки потоков.
+        return cache.GetOrAddCounterAsync(CacheKeys.ProductListVersionKey, 1, ct);
     }
 }

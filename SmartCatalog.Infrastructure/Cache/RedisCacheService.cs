@@ -9,8 +9,8 @@ public interface ICacheService
     Task<T?> GetAsync<T>(string key, CancellationToken ct = default);
     Task SetAsync<T>(string key, T value, TimeSpan? ttl = null, CancellationToken ct = default);
     Task RemoveAsync(string key, CancellationToken ct = default);
-    Task<long> GetCounterAsync(string key, CancellationToken ct = default);
-    Task<long> IncrementAsync(string key, CancellationToken ct = default);
+    Task<long> IncrementVersionListsAsync(string key, CancellationToken ct = default);
+    Task<long> GetOrAddCounterAsync(string key, long initialValue = 1, CancellationToken ct = default);
 }
 
 public partial class RedisCacheService(IConnectionMultiplexer redis, ILogger<RedisCacheService> logger) : ICacheService
@@ -46,15 +46,27 @@ public partial class RedisCacheService(IConnectionMultiplexer redis, ILogger<Red
         LogCacheDel(key);
     }
 
-    public async Task<long> GetCounterAsync(string key, CancellationToken ct = default)
-    {
-        var raw = await Db.StringGetAsync(key).WaitAsync(ct);
-        return raw.IsNullOrEmpty ? 0 : (long)raw;
-    }
-
-    public Task<long> IncrementAsync(string key, CancellationToken ct = default)
+    public Task<long> IncrementVersionListsAsync(string key, CancellationToken ct = default)
     {
         return Db.StringIncrementAsync(key).WaitAsync(ct);
+    }
+
+    public async Task<long> GetOrAddCounterAsync(string key, long initialValue = 1, CancellationToken ct = default)
+    {
+        // 1. Поток пытается просто прочитать (самый частый сценарий)
+        var raw = await Db.StringGetAsync(key).WaitAsync(ct);
+        if (!raw.IsNullOrEmpty)
+            return (long)raw;
+
+        // 2. Если ключа нет, поток создаст его атомарно.
+        // Если два потока вызовут это одновременно, только ОДИН получит true (создаст ключ).
+        await Db.StringSetAsync(key, initialValue, when: When.NotExists).WaitAsync(ct);
+
+        // 3. Перечитываем значение.
+        // Если поток проиграл гонку, он прочитаем значение, установленное другим потоком.
+        raw = await Db.StringGetAsync(key).WaitAsync(ct);
+
+        return (long)raw;
     }
 }
 
